@@ -1,5 +1,6 @@
 package client;
 
+import client.HttpJsonClient.RedirectInfo;
 import common.ResourceType;
 
 import java.util.Random;
@@ -7,35 +8,17 @@ import java.util.Random;
 public class MetricProcess {
 
     public static void main(String[] args) throws Exception {
-        String host = args[0];
-        int publicPort = Integer.parseInt(args[1]);
-        String nodeId = args[2];
-        ResourceType type = ResourceType.valueOf(args[3]);
+        String lbHost = args[0];
+        int lbPort = Integer.parseInt(args[1]);
+        String serverHost = args[2];
+        int serverPort = Integer.parseInt(args[3]);
+        String nodeId = args[4];
+        ResourceType type = ResourceType.valueOf(args[5]);
 
         HttpJsonClient client = new HttpJsonClient();
-        Integer serverPort = null;
-
-        while (serverPort == null) {
-            try {
-                serverPort = client.getRedirectPort(host, publicPort);
-                System.out.println("[CLIENT] Connected to server " + serverPort);
-            } catch (Exception e) {
-                System.out.println("[CLIENT] Waiting for available server...");
-                Thread.sleep(2000);
-            }
-        }
-
-        String registerJson = """
-                {
-                  "nodeId":"%s",
-                  "type":"%s",
-                  "role":"METRIC"
-                }
-                """.formatted(nodeId, type.name());
-
-        client.postJson("http://" + host + ":" + serverPort + "/api/nodes/register", registerJson);
-
         Random r = new Random();
+
+        register(client, serverHost, serverPort, nodeId, type, "METRIC");
 
         while (true) {
             try {
@@ -49,35 +32,44 @@ public class MetricProcess {
                         }
                         """.formatted(nodeId, type.name(), value);
 
-                client.postJson("http://" + host + ":" + serverPort + "/api/metrics/report", metricJson);
+                client.postJson("http://" + serverHost + ":" + serverPort + "/api/metrics/report", metricJson);
 
             } catch (Exception e) {
-                System.out.println("[CLIENT] Server unreachable, reconnecting...");
-                serverPort = null;
-
-                while (serverPort == null) {
-                    try {
-                        serverPort = client.getRedirectPort(host, publicPort);
-                        System.out.println("[CLIENT] Reconnected to server " + serverPort);
-
-                        String registerJsonReconnect = """
-                                {
-                                  "nodeId":"%s",
-                                  "type":"%s",
-                                  "role":"METRIC"
-                                }
-                                """.formatted(nodeId, type.name());
-
-                        client.postJson("http://" + host + ":" + serverPort + "/api/nodes/register", registerJsonReconnect);
-
-                    } catch (Exception ex) {
-                        System.out.println("[CLIENT] retrying connection...");
-                        Thread.sleep(2000);
-                    }
-                }
+                System.out.println("[CLIENT] Metric server unreachable, reconnecting...");
+                RedirectInfo redirect = reconnect(client, lbHost, lbPort, nodeId, type, "METRIC");
+                serverHost = redirect.host;
+                serverPort = redirect.port;
             }
 
             Thread.sleep(3000);
+        }
+    }
+
+    private static void register(HttpJsonClient client, String host, int serverPort,
+                                 String nodeId, ResourceType type, String role) throws Exception {
+        String registerJson = """
+                {
+                  "nodeId":"%s",
+                  "type":"%s",
+                  "role":"%s"
+                }
+                """.formatted(nodeId, type.name(), role);
+
+        client.postJson("http://" + host + ":" + serverPort + "/api/nodes/register", registerJson);
+    }
+
+    private static RedirectInfo reconnect(HttpJsonClient client, String lbHost, int lbPort,
+                                          String nodeId, ResourceType type, String role) throws Exception {
+        while (true) {
+            try {
+                RedirectInfo redirect = client.getRedirect(lbHost, lbPort);
+                System.out.println("[CLIENT] Reconnected to server " + redirect.host + ":" + redirect.port);
+                register(client, redirect.host, redirect.port, nodeId, type, role);
+                return redirect;
+            } catch (Exception ex) {
+                System.out.println("[CLIENT] retrying connection...");
+                Thread.sleep(2000);
+            }
         }
     }
 
@@ -90,4 +82,6 @@ public class MetricProcess {
             case STORAGE_NODE -> r.nextInt(100);
         };
     }
+
 }
+ 

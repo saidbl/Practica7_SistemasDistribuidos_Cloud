@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SD Monitor PWA</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>SD Monitor PWA</h1>
+      <p>Monitoreo del sistema distribuido</p>
+    </div>
+    <div class="header-actions">
+      <button id="installBtn" hidden>Instalar</button>
+      <span id="statusBadge" class="badge">Conectando...</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="summary-grid">
+      <div class="card">
+        <h2>Servidor</h2>
+        <p id="serverId">--</p>
+      </div>
+      <div class="card">
+        <h2>Líder</h2>
+        <p id="leaderId">--</p>
+      </div>
+      <div class="card">
+        <h2>¿Líder actual?</h2>
+        <p id="isLeader">--</p>
+      </div>
+      <div class="card">
+        <h2>Total nodos</h2>
+        <p id="totalNodes">--</p>
+      </div>
+    </section>
+
+    <section class="grid-two">
+      <div class="card">
+        <h2>Estado de nodos</h2>
+        <div class="status-row">
+          <span>ALIVE: <strong id="aliveCount">0</strong></span>
+          <span>SUSPECT: <strong id="suspectCount">0</strong></span>
+          <span>DEAD: <strong id="deadCount">0</strong></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recursos del clúster</h2>
+        <div id="resourcesList"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="table-header">
+        <h2>Nodos registrados</h2>
+        <button id="refreshBtn">Actualizar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Node ID</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Última métrica</th>
+            </tr>
+          </thead>
+          <tbody id="nodesTableBody">
+            <tr><td colspan="4">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <small id="lastUpdate">Última actualización: --</small>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

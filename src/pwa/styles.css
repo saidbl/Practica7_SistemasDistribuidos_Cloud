@@ -1,0 +1,169 @@
+:root {
+  --bg: #0b1020;
+  --card: #121a2b;
+  --border: #24324b;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar h1, .topbar p {
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.container {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.card p {
+  font-size: 1.7rem;
+  font-weight: bold;
+  margin-bottom: 0;
+}
+
+.status-row {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+#resourcesList {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.resource-item {
+  background: #0f172a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+button {
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #1e293b;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.badge {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: bold;
+}
+
+.badge.online {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--ok);
+}
+
+.badge.offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--bad);
+}
+
+.status-pill {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.status-ALIVE {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--ok);
+}
+
+.status-SUSPECT {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warn);
+}
+
+.status-DEAD {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--bad);
+}
+
+@media (max-width: 900px) {
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+}

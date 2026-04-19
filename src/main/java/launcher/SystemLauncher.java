@@ -3,7 +3,7 @@ package launcher;
 public class SystemLauncher {
 
     public static void main(String[] args) throws Exception {
-        String cp = "target/classes";
+        String cp = System.getProperty("java.class.path");
 
         System.out.println("=== STARTING DISTRIBUTED SYSTEM ===");
 
@@ -32,7 +32,7 @@ public class SystemLauncher {
                 .inheritIO()
                 .start();
 
-        Thread.sleep(3000);
+        Thread.sleep(10000);
 
         for (int i = 0; i < 6; i++) {
             new ProcessBuilder("java", "-cp", cp,
@@ -45,7 +45,7 @@ public class SystemLauncher {
 
         System.out.println("=== SYSTEM RUNNING ===");
         System.out.println("LB socket redirect on 4000");
-        System.out.println("Servers HTTP: 5001, 5002, 5003");
-        System.out.println("Cluster ports: 7001, 7002, 7003");
+        System.out.println("Servers HTTP + PWA: 5001, 5002, 5003");
+        System.out.println("Open PWA at: http://localhost:5001/");
     }
 }

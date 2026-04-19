@@ -21,7 +21,7 @@ public class HttpJsonClient {
                 .build();
     }
 
-    public int getRedirectPort(String host, int publicPort) throws Exception {
+    public RedirectInfo getRedirect(String host, int publicPort) throws Exception {
         try (Socket s = new Socket(host, publicPort)) {
             ObjectInputStream in = new ObjectInputStream(s.getInputStream());
             Message m = (Message) in.readObject();
@@ -30,7 +30,13 @@ public class HttpJsonClient {
                 throw new RuntimeException("Expected REDIRECT");
             }
 
-            return (int) m.getPayload();
+            String target = (String) m.getPayload();
+            String[] parts = target.split(":");
+            if (parts.length != 2) {
+                throw new RuntimeException("Invalid redirect target: " + target);
+            }
+
+            return new RedirectInfo(parts[0], Integer.parseInt(parts[1]));
         }
     }
 
@@ -69,5 +75,15 @@ public class HttpJsonClient {
         }
 
         return response.body();
+    }
+
+    public static class RedirectInfo {
+        public final String host;
+        public final int port;
+
+        public RedirectInfo(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
     }
 }

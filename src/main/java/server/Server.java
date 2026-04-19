@@ -46,7 +46,7 @@ public class Server {
     private static final List<ClusterPeer> PEERS = new ArrayList<>();
     private static volatile int leaderId = -1;
     private static volatile boolean isLeader = false;
-    private static volatile long lastLeaderHeartbeat = 0L;
+    private static volatile long lastLeaderHeartbeat = System.currentTimeMillis();
     private static volatile boolean electionInProgress = false;
 
     private static volatile long nextSeq = 1;
@@ -74,10 +74,10 @@ public class Server {
         }
 
         List<ClusterPeer> all = List.of(
-                new ClusterPeer(1, "localhost", 7001),
-                new ClusterPeer(2, "localhost", 7002),
-                new ClusterPeer(3, "localhost", 7003)
-        );
+        new ClusterPeer(1, "server1", 7001),
+        new ClusterPeer(2, "server2", 7002),
+        new ClusterPeer(3, "server3", 7003)
+);
         for (ClusterPeer p : all) {
             if (p.id != SERVER_ID) PEERS.add(p);
         }
@@ -88,6 +88,14 @@ public class Server {
 
         new Thread(Server::runClusterListener, "ClusterListener").start();
         new Thread(Server::monitorHeartbeats, "ClientHeartbeatMonitor").start();
+
+        Thread.sleep(3000);
+        lastLeaderHeartbeat = System.currentTimeMillis();
+
+        if (SERVER_ID == 3) {
+            becomeLeader();
+        }
+
         new Thread(Server::monitorLeader, "LeaderMonitor").start();
 
         for (int i = 0; i < 4; i++) {
@@ -371,10 +379,13 @@ public class Server {
                 switch (msg.getType()) {
                     case "LEADER_HEARTBEAT" -> {
                         int hbLeaderId = (int) msg.getPayload();
-                        leaderId = hbLeaderId;
-                        isLeader = (leaderId == SERVER_ID);
-                        lastLeaderHeartbeat = System.currentTimeMillis();
-                        electionInProgress = false;
+
+                        if (leaderId == -1 || hbLeaderId >= leaderId) {
+                            leaderId = hbLeaderId;
+                            isLeader = (leaderId == SERVER_ID);
+                            lastLeaderHeartbeat = System.currentTimeMillis();
+                            electionInProgress = false;
+                        }
                     }
                     case "ELECTION" -> {
                         int fromId = (int) msg.getPayload();
@@ -387,7 +398,12 @@ public class Server {
                     }
                     case "COORDINATOR" -> {
                         int newLeader = (int) msg.getPayload();
-                        setLeader(newLeader);
+
+                        if (leaderId == -1 || newLeader > leaderId ||
+                                (System.currentTimeMillis() - lastLeaderHeartbeat) > LEADER_TIMEOUT_MS) {
+                            setLeader(newLeader);
+                        }
+
                         electionInProgress = false;
                     }
                     case "REPL_EVENT" -> messageQueue.put(msg);
@@ -411,7 +427,14 @@ public class Server {
                     broadcastLeaderHeartbeat();
                 } else {
                     long diff = System.currentTimeMillis() - lastLeaderHeartbeat;
-                    if (!electionInProgress && (leaderId == -1 || diff > LEADER_TIMEOUT_MS)) {
+
+                    if (!electionInProgress &&
+                            leaderId == -1 &&
+                            diff > 5000) {
+                        startElection("NO_LEADER_BOOTSTRAP");
+                    } else if (!electionInProgress &&
+                            leaderId != -1 &&
+                            diff > LEADER_TIMEOUT_MS) {
                         startElection("LEADER_TIMEOUT");
                     }
                 }
@@ -422,29 +445,38 @@ public class Server {
     }
 
     private static synchronized void startElection(String reason) {
-        if (isLeader) return;
-        if (electionInProgress) return;
-        electionInProgress = true;
+    if (isLeader) return;
+    if (electionInProgress) return;
+    if (leaderId != -1 && (System.currentTimeMillis() - lastLeaderHeartbeat) < LEADER_TIMEOUT_MS) return;
 
-        System.out.println("[ELECTION] start reason=" + reason + " me=" + SERVER_ID);
+    electionInProgress = true;
 
-        boolean higherExists = false;
-        boolean gotOk = false;
+    System.out.println("[ELECTION] start reason=" + reason + " me=" + SERVER_ID);
 
-        for (ClusterPeer p : PEERS) {
-            if (p.id > SERVER_ID) {
-                higherExists = true;
-                Boolean ok = sendElectionAndWaitOk(p);
-                if (Boolean.TRUE.equals(ok)) gotOk = true;
+    boolean higherExists = false;
+    boolean gotOk = false;
+
+    for (ClusterPeer p : PEERS) {
+        if (p.id > SERVER_ID) {
+            higherExists = true;
+            Boolean ok = sendElectionAndWaitOk(p);
+            if (Boolean.TRUE.equals(ok)) {
+                gotOk = true;
             }
         }
-
-        if (!higherExists || !gotOk) {
-            becomeLeader();
-        } else {
-            System.out.println("[ELECTION] waiting coordinator...");
-        }
     }
+
+    if (leaderId != -1 && (System.currentTimeMillis() - lastLeaderHeartbeat) < LEADER_TIMEOUT_MS) {
+        electionInProgress = false;
+        return;
+    }
+
+    if (!higherExists || !gotOk) {
+        becomeLeader();
+    } else {
+        System.out.println("[ELECTION] waiting coordinator...");
+    }
+}
 
     private static Boolean sendElectionAndWaitOk(ClusterPeer p) {
         try (Socket s = new Socket(p.host, p.clusterPort);
@@ -454,7 +486,7 @@ public class Server {
             out.writeObject(new Message("ELECTION", SERVER_ID));
             out.flush();
 
-            s.setSoTimeout(1200);
+            s.setSoTimeout(3000);
             Message resp = (Message) in.readObject();
             return "OK".equals(resp.getType());
 
@@ -526,6 +558,42 @@ public class Server {
             stateLock.readLock().unlock();
         }
     }
+    public static boolean isLeader() {
+    return isLeader;
+}
+
+public static int getLeaderId() {
+    return leaderId;
+}
+
+public static int getLeaderPublicPort() {
+    return switch (leaderId) {
+        case 1 -> 5001;
+        case 2 -> 5002;
+        case 3 -> 5003;
+        default -> -1;
+    };
+}
+public static String getLeaderHost() {
+    return switch (leaderId) {
+        case 1 -> "server1";
+        case 2 -> "server2";
+        case 3 -> "server3";
+        default -> "";
+    };
+}
+public static String getServerHost() {
+    return switch (SERVER_ID) {
+        case 1 -> "server1";
+        case 2 -> "server2";
+        case 3 -> "server3";
+        default -> "";
+    };
+}
+
+public static int getServerId() {
+    return SERVER_ID;
+}
 
     public static String getClusterStatusJson() {
         stateLock.readLock().lock();
@@ -534,6 +602,45 @@ public class Server {
             sb.append("\"serverId\":").append(SERVER_ID).append(",");
             sb.append("\"leaderId\":").append(leaderId).append(",");
             sb.append("\"isLeader\":").append(isLeader).append(",");
+            sb.append("\"resources\":{");
+
+            boolean first = true;
+            for (ResourceType t : cluster.keySet()) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append("\"").append(t.name()).append("\":").append(cluster.get(t).size());
+            }
+
+            sb.append("}}");
+            return sb.toString();
+        } finally {
+            stateLock.readLock().unlock();
+        }
+    }
+    public static String getDashboardSummaryJson() {
+        stateLock.readLock().lock();
+        try {
+            int totalNodes = nodeType.size();
+            int alive = 0;
+            int suspect = 0;
+            int dead = 0;
+
+            for (String nodeId : nodeType.keySet()) {
+                NodeStatus status = nodeStatus.getOrDefault(nodeId, NodeStatus.SUSPECT);
+
+                if (status == NodeStatus.ALIVE) alive++;
+                else if (status == NodeStatus.SUSPECT) suspect++;
+                else if (status == NodeStatus.DEAD) dead++;
+            }
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"serverId\":").append(SERVER_ID).append(",");
+            sb.append("\"leaderId\":").append(leaderId).append(",");
+            sb.append("\"isLeader\":").append(isLeader).append(",");
+            sb.append("\"totalNodes\":").append(totalNodes).append(",");
+            sb.append("\"alive\":").append(alive).append(",");
+            sb.append("\"suspect\":").append(suspect).append(",");
+            sb.append("\"dead\":").append(dead).append(",");
             sb.append("\"resources\":{");
 
             boolean first = true;

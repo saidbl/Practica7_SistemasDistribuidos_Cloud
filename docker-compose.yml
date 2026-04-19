@@ -1,0 +1,94 @@
+version: "3.9"
+
+services:
+  lb:
+    build: .
+    container_name: lb
+    command: ["java", "-cp", "out", "lb.LoadBalancer"]
+    ports:
+      - "4000:4000"
+    depends_on:
+      - server1
+      - server2
+      - server3
+    networks:
+      - sdnet
+
+  server1:
+    build: .
+    container_name: server1
+    command: ["java", "-cp", "out", "server.Server", "1", "5001", "7001"]
+    ports:
+      - "5001:5001"
+    networks:
+      - sdnet
+
+  server2:
+    build: .
+    container_name: server2
+    command: ["java", "-cp", "out", "server.Server", "2", "5002", "7002"]
+    ports:
+      - "5002:5002"
+    networks:
+      - sdnet
+
+  server3:
+    build: .
+    container_name: server3
+    command: ["java", "-cp", "out", "server.Server", "3", "5003", "7003"]
+    ports:
+      - "5003:5003"
+    networks:
+      - sdnet
+
+  client1:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+  client2:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+  client3:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+  client4:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+  client5:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+  client6:
+    build: .
+    command: ["java", "-cp", "out", "client.Client", "lb", "4000"]
+    depends_on:
+      - lb
+    networks:
+      - sdnet
+
+networks:
+  sdnet:
+    driver: bridge

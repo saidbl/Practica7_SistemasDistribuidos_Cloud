@@ -12,8 +12,11 @@ public class LoadBalancer {
 
     private static final int LB_PORT = 4000;
 
-    private static final List<Integer> SERVER_PUBLIC_PORTS =
-            List.of(5001, 5002, 5003);
+    private static final List<String> SERVER_TARGETS = List.of(
+            "server1:5001",
+            "server2:5002",
+            "server3:5003"
+    );
 
     private static final AtomicInteger rr = new AtomicInteger(0);
 
@@ -24,29 +27,29 @@ public class LoadBalancer {
             while (true) {
                 Socket clientSock = ss.accept();
 
-                Integer serverPort = findServerPort();
-
-                if (serverPort == null) {
-                    System.out.println("[LB] No servers available!");
-                    clientSock.close();
-                    continue;
-                }
+                String target = findServerTarget();
 
                 try (ObjectOutputStream out =
                              new ObjectOutputStream(clientSock.getOutputStream())) {
 
-                    out.writeObject(new Message("REDIRECT", serverPort));
+                    System.out.println("[LB] Redirecting client to " + target);
+                    out.writeObject(new Message("REDIRECT", target));
                     out.flush();
+
+                } catch (Exception e) {
+                    System.out.println("[LB] Error redirecting client: " + e.getMessage());
                 } finally {
-                    clientSock.close();
+                    try {
+                        clientSock.close();
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }
     }
 
-    private static Integer findServerPort() {
-        int size = SERVER_PUBLIC_PORTS.size();
-        int idx = Math.floorMod(rr.getAndIncrement(), size);
-        return SERVER_PUBLIC_PORTS.get(idx);
+    private static String findServerTarget() {
+        int idx = Math.floorMod(rr.getAndIncrement(), SERVER_TARGETS.size());
+        return SERVER_TARGETS.get(idx);
     }
 }
